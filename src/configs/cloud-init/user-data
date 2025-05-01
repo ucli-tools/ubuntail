@@ -1,0 +1,167 @@
+#cloud-config
+autoinstall:
+  version: 1
+  
+  # Enhanced early commands with better error handling
+  early-commands:
+    - |
+      # Mount and decrypt sensitive data partition with retry logic
+      MAX_ATTEMPTS=3
+      ATTEMPT=1
+      while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+        echo "Attempting to mount secure partition (attempt $ATTEMPT)"
+        if mkdir -p /mnt/secure && \
+           cryptsetup luksOpen /dev/disk/by-label/SECURE-CONFIG secure-config && \
+           mount /dev/mapper/secure-config /mnt/secure; then
+          break
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep 5
+      done
+      
+      if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+        echo "Failed to mount secure partition after $MAX_ATTEMPTS attempts"
+        exit 1
+      fi
+      
+      # Source credentials and verify
+      if [ -f /mnt/secure/credentials/credentials.env ]; then
+        . /mnt/secure/credentials/credentials.env
+      else
+        echo "Credentials file not found"
+        exit 1
+      fi
+      
+      # Cleanup
+      umount /mnt/secure || true
+      cryptsetup luksClose secure-config || true
+  
+  # Updated locale and keyboard settings
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+    
+  # Enhanced network configuration with fallback
+  network:
+    network:
+      version: 2
+      ethernets:
+        any:
+          match:
+            name: "en*|eth*"
+          dhcp4: true
+          optional: true
+          
+  # Improved storage configuration with better partition scheme
+  storage:
+    config:
+      - type: disk
+        id: disk-0
+        ptable: gpt
+        wipe: superblock
+        grub_device: true
+      - type: partition
+        id: efi-partition
+        device: disk-0
+        size: 512M
+        flag: boot
+        grub_device: true
+      - type: partition
+        id: boot-partition
+        device: disk-0
+        size: 1G
+      - type: partition
+        id: root-partition
+        device: disk-0
+        size: -1
+      - type: format
+        id: format-efi
+        volume: efi-partition
+        fstype: fat32
+        label: EFI
+      - type: format
+        id: format-boot
+        volume: boot-partition
+        fstype: ext4
+        label: boot
+      - type: format
+        id: format-root
+        volume: root-partition
+        fstype: ext4
+        label: Ubuntu-Server
+      - type: mount
+        id: mount-root
+        device: format-root
+        path: /
+      - type: mount
+        id: mount-boot
+        device: format-boot
+        path: /boot
+      - type: mount
+        id: mount-efi
+        device: format-efi
+        path: /boot/efi
+    
+  # Identity configuration with random hostname
+  identity:
+    hostname: "${HOSTNAME_PREFIX}-$(openssl rand -hex 4)"
+    username: "${NODE_USERNAME}"
+    password: "${ENCRYPTED_PASSWORD}"
+    
+  # Secure SSH configuration
+  ssh:
+    install-server: true
+    allow-pw: true
+    
+  # Updated package list
+  packages:
+    - openssh-server
+    - curl
+    - wget
+    - net-tools
+    - htop
+    - monit
+    - cron
+    - logwatch
+    - jq
+    - cryptsetup
+    - grub-efi-amd64
+    - fail2ban
+    - ufw
+    - unattended-upgrades
+    
+  # Enhanced update policy
+  updates:
+    updates: security
+    
+  # Improved late commands with better error handling
+  late-commands:
+    # Install Tailscale with retry logic
+    - |
+      curtin in-target -- bash -c '
+      MAX_ATTEMPTS=3
+      ATTEMPT=1
+      while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+        if curl -fsSL https://tailscale.com/install.sh | bash; then
+          break
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep 10
+      done
+      
+      if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+        echo "Failed to install Tailscale after $MAX_ATTEMPTS attempts"
+        exit 1
+      fi
+      '
+    
+    # Enable and configure Tailscale
+    - curtin in-target -- systemctl enable tailscaled
+    
+    # Setup Tailscale auto-connect with improved error handling
+    - |
+      cat << 'EOT' > /target/var/lib/cloud/scripts/per-once/01-tailscale-up.sh
+      #!/bin/bash
+      tailscale up --authkey "${TAILSCALE_AUTHKEY}" --hostname "$(hostname)" --ssh
+      EOT
+    - chmod +x /target/var/lib/cloud/

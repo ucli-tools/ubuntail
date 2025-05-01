@@ -1,0 +1,23 @@
+# Build artifacts
+*.iso
+*.img
+*.bin
+*.efi
+*.o
+*.log
+/temp
+all_files_text.txt
+
+# Sensitive information
+credentials.env
+secure/
+.env
+
+# System files
+.DS_Store
+.vscode/
+*~
+
+# Build directories
+build/
+dist/
