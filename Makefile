@@ -1,9 +1,13 @@
+# Get the script name dynamically based on sole script in repo
+SCRIPT_NAME := $(wildcard *.sh)
+INSTALL_NAME := $(basename $(SCRIPT_NAME))
+
 build:
-	sudo bash ubuntail.sh install
+	bash $(SCRIPT_NAME) install
 
 rebuild:
-	sudo ubuntail uninstall
-	sudo bash ubuntail.sh install
+	$(INSTALL_NAME) uninstall
+	bash $(SCRIPT_NAME) install
 	
 delete:
-	sudo ubuntail uninstall
+	$(INSTALL_NAME) uninstall
