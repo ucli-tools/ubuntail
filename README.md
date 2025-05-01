@@ -74,8 +74,8 @@ A USB boot system for automated Ubuntu 24.04 server deployment with secure remot
 ### 1. USB Creation
 ```bash
 # Clone and prepare installer
-git clone https://github.com/Mik-TF/ubuntail_bootmaker
-cd ubuntail_bootmaker
+git clone https://github.com/ucli-tools/ubuntail
+cd ubuntail
 sudo bash ./install.sh
 
 # Follow prompts for:
