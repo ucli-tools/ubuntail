@@ -3,11 +3,11 @@ SCRIPT_NAME := $(wildcard *.sh)
 INSTALL_NAME := $(basename $(SCRIPT_NAME))
 
 build:
-	bash $(SCRIPT_NAME) install
+	sudo bash $(SCRIPT_NAME) install
 
 rebuild:
-	$(INSTALL_NAME) uninstall
-	bash $(SCRIPT_NAME) install
+	sudo $(INSTALL_NAME) uninstall
+	sudo bash $(SCRIPT_NAME) install
 	
 delete:
-	$(INSTALL_NAME) uninstall
+	sudo $(INSTALL_NAME) uninstall
